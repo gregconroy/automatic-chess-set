@@ -22,7 +22,7 @@ class ChessUI(tk.Tk):
         self.selected_bitboards = []
 
         # Set the initial size
-        self.initial_width = 1024
+        self.initial_width = 700
         self.initial_height = 512
         self.geometry(f"{self.initial_width}x{self.initial_height}")
 
@@ -311,6 +311,7 @@ class ChessUI(tk.Tk):
 
         piece = self.chess_engine.get_piece_at(square_index)
         if piece:
+            print("Showing legal moves")
             self.legal_move_bitboard = self.chess_engine.get_legal_moves(square_index)
             self.dragged_piece = piece
             self.dragged_piece_position = square_index

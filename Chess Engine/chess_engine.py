@@ -1,5 +1,3 @@
-# TODO: Don't use slider attacks to mask king moves when it is in check
-
 class ChessEngine:
     def __init__(self):
         self.piece_bitboards = {
@@ -55,6 +53,7 @@ class ChessEngine:
             'q': [0x0]*64
         }
 
+        self.king_attacks = [0x0]*64
         self.pawn_attacks = {'w': [0x0] * 64, 'b': [0x0] * 64}  # Initialize attack arrays for both colors
         self.knight_attacks = [0x0]*64
         self.path_masks = [[0x0] * 64 for _ in range(64)]
@@ -65,6 +64,7 @@ class ChessEngine:
 
         self.__generate_path_masks()
         self.__generate_slider_attacks()
+        self.__generate_king_attacks()
         self.__generate_knight_attacks()
         self.__generate_pawn_attacks()
         self.__update_attack_bitboards()
@@ -140,16 +140,14 @@ class ChessEngine:
 
             # For white pawns, check if it has reached the 8th rank (row 7)
             if piece_colour == 'w' and row == 7:
-                self.__promote_pawn(destination_bitboard, 'q')  # Promote to queen
+                self.__promote_pawn(destination_bitboard, 'q', piece_colour)  # Promote to queen
             
             # For black pawns, check if it has reached the 1st rank (row 0)
             elif piece_colour == 'b' and row == 0:
-                self.__promote_pawn(destination_bitboard, 'q')  # Promote to queen
+                self.__promote_pawn(destination_bitboard, 'q', piece_colour)  # Promote to queen
 
-    def __promote_pawn(self, destination_bitboard, new_piece_type):
+    def __promote_pawn(self, destination_bitboard, new_piece_type, piece_colour):
         """Replace the pawn with a new piece (queen in this case) at the destination square."""
-        piece_square = self.__get_square_from_bitboard(destination_bitboard)
-        piece_colour = 'w' if new_piece_type == 'q' else 'b'  # Set colour of new piece based on promotion
 
         # Clear the pawn from bitboards
         self.piece_bitboards['p'] &= ~destination_bitboard
@@ -363,9 +361,9 @@ class ChessEngine:
             else:
                 if slider_mask & king_bitboard:
                     print("King in check")
-                    self.print_bitboard(source_bitboard | king_bitboard, title="King and Source")
-                    self.print_bitboard(path_mask, title="Path Mask")
-                    self.print_bitboard(slider_mask, title="Slider Mask")
+                    # self.print_bitboard(source_bitboard | king_bitboard, title="King and Source")
+                    # self.print_bitboard(path_mask, title="Path Mask")
+                    # self.print_bitboard(slider_mask, title="Slider Mask")
                     self.check_masks[pinning_square] = path_mask
                     self.check_mask_bitboard |= 1 << pinning_square
 
@@ -401,6 +399,9 @@ class ChessEngine:
 
                     # Combine the attacks
                     self.attack_bitboards[colour] |= left_attack | right_attack
+                elif piece_type == 'k':
+                    king_attacks = self.king_attacks[self.__get_square_from_bitboard(piece_bitboard)]
+                    self.attack_bitboards[colour] |= king_attacks
                 else:
                     # For each piece that is present, generate its attack moves
                     while piece_bitboard:
@@ -412,6 +413,27 @@ class ChessEngine:
                         
                         # Remove the processed piece from the bitboard
                         piece_bitboard &= ~(1 << square)
+
+    def __generate_king_attacks(self):
+        """Generate attack bitboards for the king from every square."""
+        for square in range(64):
+            row, col = divmod(square, 8)
+            attack_mask = 0
+
+            # Define all potential king move offsets (relative to the current square)
+            king_moves = [
+                (-1, -1), (-1, 0), (-1, 1),  # Top row
+                (0, -1),         (0, 1),     # Same row (left and right)
+                (1, -1), (1, 0), (1, 1)      # Bottom row
+            ]
+
+            # Iterate through all possible king moves
+            for move in king_moves:
+                r, c = row + move[0], col + move[1]
+                if 0 <= r < 8 and 0 <= c < 8:  # Ensure the move is within the board
+                    attack_mask |= (1 << (r * 8 + c))  # Set bit for the attack square
+
+            self.king_attacks[square] = attack_mask  # Store attack bitboard for this square
 
     def __generate_pawn_attacks(self):
         """Generate pawn attack bitboards for black and white pawns."""
@@ -575,73 +597,96 @@ class ChessEngine:
         if self.colour_to_move != piece_colour:
             return None
         
-        pinned_mask = self.pin_masks[self.__get_square_from_bitboard(source_bitboard)]
+        source_square = self.__get_square_from_bitboard(source_bitboard)
+        pinned_mask = self.pin_masks[source_square]
         legal_moves = self.generate_moves[piece_type](source_bitboard, piece_colour)
         legal_moves &= ~self.colour_bitboards[piece_colour]
         legal_moves &= pinned_mask
 
+        self.print_bitboard(source_bitboard, "Source bitboard")
+
+
         if self.check_mask_bitboard:
-            if piece_type == 'k':
-                attacking_piece = self.__get_piece_at(self.check_mask_bitboard)
-                ap_type, _ = attacking_piece
-                if ap_type != 'n' and ap_type != 'p':
-                    slider_mask = self.slider_attacks[ap_type][self.__get_square_from_bitboard(self.check_mask_bitboard)]
-                    legal_moves &= ~slider_mask
-            else:
-                check_mask = self.check_masks[self.__get_square_from_bitboard(self.check_mask_bitboard)]
-                legal_moves &= check_mask
+            print("Check count: ", self.check_mask_bitboard.bit_count())
+
+            checking_bitboards = self.__get_checking_bitboards(self.check_mask_bitboard)
+            for checking_bitboard in checking_bitboards:
+                self.print_bitboard(checking_bitboard, "Checking bitboard")
+
+                if piece_type == 'k':
+                    attacking_piece = self.__get_piece_at(checking_bitboard)
+                    ap_type, _ = attacking_piece
+                    if ap_type != 'n' and ap_type != 'p':
+                        attacking_square = self.__get_square_from_bitboard(checking_bitboard)
+                        if self.__is_same_diag(source_square, attacking_square):
+                            slider_mask = self.slider_attacks['b'][self.__get_square_from_bitboard(checking_bitboard)]
+                        else:
+                            slider_mask = self.slider_attacks['r'][self.__get_square_from_bitboard(checking_bitboard)]
+                            
+                        legal_moves &= ~slider_mask
+                else:
+                    if self.check_mask_bitboard.bit_count() > 1:
+                        return 0x0
+
+                    check_mask = self.check_masks[self.__get_square_from_bitboard(checking_bitboard)]
+                    self.print_bitboard(check_mask, "Check mask")
+                    legal_moves &= check_mask
+                    self.print_bitboard(legal_moves, "Legal moves")
 
         return legal_moves
 
     def __generate_pawn_moves(self, source_bitboard, colour):
-        # Determine the direction of movement based on colour
+        """Generates legal pawn moves including forward moves, captures, promotion, and en passant."""
+        
+        # Find the current square of the pawn
+        current_square = self.__get_square_from_bitboard(source_bitboard)
+        legal_moves_bitboard = 0
+        
+        # Determine move direction and starting/promotion ranks based on colour
         if colour == "w":  # White pawns move upwards (to higher ranks)
             move_direction = 8  # Move forward 1 square
             start_rank = 1      # Starting rank for white pawns (rank 2, index 1)
             promotion_rank = 7  # Promotion rank for white pawns (rank 8, index 7)
+            opponent_colour = "b"
         else:  # Black pawns move downwards (to lower ranks)
             move_direction = -8  # Move forward 1 square
             start_rank = 6       # Starting rank for black pawns (rank 7, index 6)
             promotion_rank = 0   # Promotion rank for black pawns (rank 1, index 0)
-
-        # Find the current square of the pawn
-        current_square = self.__get_square_from_bitboard(source_bitboard)
-
-        # Initialize a bitboard for legal moves
-        legal_moves_bitboard = 0
+            opponent_colour = "w"
+        
+        # Precomputed pawn attack masks for capturing moves
+        pawn_attacks = self.pawn_attacks[colour][current_square]
 
         # Move forward by 1 square
         forward_square = current_square + move_direction
-        if forward_square >= 0 and forward_square < 64:  # Check bounds
-            if not self.__is_piece_present(1 << forward_square):  # Check if the square is empty
+        if 0 <= forward_square < 64:  # Check bounds
+            if not self.__is_piece_present(1 << forward_square):  # Square must be empty
                 legal_moves_bitboard |= (1 << forward_square)  # Set the bit for this move
                 # Check for promotion
                 if forward_square // 8 == promotion_rank:
-                    print(f"Pawn can be promoted on square {forward_square}")
-
+                    legal_moves_bitboard |= self.__handle_pawn_promotion(forward_square, colour)
+        
         # Move forward by 2 squares if on the starting rank
         if current_square // 8 == start_rank:
             double_forward_square = current_square + (2 * move_direction)
-            if double_forward_square >= 0 and double_forward_square < 64:
-                if (not self.__is_piece_present(1 << double_forward_square) and
-                    not self.__is_piece_present(1 << forward_square)):  # Ensure both squares are empty
-                    legal_moves_bitboard |= (1 << double_forward_square)  # Set the bit for this move
+            if (0 <= double_forward_square < 64 and
+                not self.__is_piece_present(1 << double_forward_square) and
+                not self.__is_piece_present(1 << forward_square)):  # Both squares must be empty
+                legal_moves_bitboard |= (1 << double_forward_square)  # Set the bit for the double move
+                # Set en passant target square (just behind the pawn)
+                self.en_passant_bitboard = (1 << forward_square)
 
-                    # Set the en passant target
-                    self.en_passant_bitboard = (1 << (forward_square - (8 if colour == "w" else -8)))
-
-        # Check for captures (diagonal moves)
-        for dx in [-1, 1]:  # Capture diagonally left and right
-            capture_square = current_square + move_direction + dx
-            if capture_square >= 0 and capture_square < 64:
-                if self.__is_piece_present(1 << capture_square, "b" if colour == "w" else "w"):  # Check opponent's piece
-                    legal_moves_bitboard |= (1 << capture_square)  # Set the bit for this move
-
-                # Check for en passant capture
-                if self.en_passant_bitboard and (capture_square == self.__get_square_from_bitboard(self.en_passant_bitboard)):
-                    legal_moves_bitboard |= (1 << capture_square)  # Allow en passant capture
+        # Use precomputed pawn attack mask for capture moves
+        captures_bitboard = pawn_attacks & self.colour_bitboards[opponent_colour]
+        legal_moves_bitboard |= captures_bitboard
+        
+        # Check for en passant capture
+        en_passant_capture = pawn_attacks & self.en_passant_bitboard
+        if en_passant_capture:
+            legal_moves_bitboard |= en_passant_capture
 
         return legal_moves_bitboard  # Return the bitboard of legal moves for the pawn
+
 
     def __generate_rook_moves(self, source_bitboard, colour):
         # Initialize the bitboard for legal moves
@@ -700,30 +745,9 @@ class ChessEngine:
 
     def __generate_knight_moves(self, source_bitboard, colour):
         current_square = self.__get_square_from_bitboard(source_bitboard)
-        legal_moves_bitboard = 0
-
-        # All possible knight moves in (row, column) offsets
-        knight_moves = [
-            (-2, -1), (-2, 1),  # Two up, one left/right
-            (-1, -2), (-1, 2),  # One up, two left/right
-            (1, -2), (1, 2),    # One down, two left/right
-            (2, -1), (2, 1)     # Two down, one left/right
-        ]
-
-        for move in knight_moves:
-            target_row = (current_square // 8) + move[0]
-            target_col = (current_square % 8) + move[1]
-
-            # Check if the target square is within bounds
-            if 0 <= target_row < 8 and 0 <= target_col < 8:
-                target_square = target_row * 8 + target_col
-
-                # Check if the target square is empty or contains an opponent's piece
-                legal_moves_bitboard |= (1 << target_square)
+        legal_moves_bitboard = self.knight_attacks[current_square]
 
         return legal_moves_bitboard  # Return the bitboard of legal moves for the knight
-
-
 
     def __generate_bishop_moves(self, source_bitboard, colour):
         # Initialize the bitboard for legal moves
@@ -780,19 +804,14 @@ class ChessEngine:
 
     def __generate_king_moves(self, source_bitboard, colour):
         current_square = self.__get_square_from_bitboard(source_bitboard)
-        legal_moves_bitboard = 0
-        
-        king_moves = [
-            -9, -8, -7, -1, 1, 7, 8, 9  # All possible king moves
-        ]
+        legal_moves_bitboard = self.king_attacks[current_square]
 
-        for move in king_moves:
-            target_square = current_square + move
-            if 0 <= target_square < 64:
-                legal_moves_bitboard |= (1 << target_square)
-
+        # Add castling rights if available
         legal_moves_bitboard |= self.castling_bitboards[colour]
+
+        # Exclude squares under attack by opponent
         legal_moves_bitboard &= ~self.attack_bitboards["b" if colour == "w" else "w"]
+
         return legal_moves_bitboard  # Return the bitboard of legal moves for the king
 
 
@@ -811,6 +830,16 @@ class ChessEngine:
         """Get the square index (0-63) from the bitboard."""
         return (bitboard.bit_length() - 1) if bitboard else None
 
+    def __get_checking_bitboards(self, check_mask_bitboard):
+        """Extracts individual bitboards with only one '1' bit for each piece checking the king."""
+        bitboards = []
+
+        while check_mask_bitboard:
+            lsb = check_mask_bitboard & -check_mask_bitboard
+            bitboards.append(lsb)
+            check_mask_bitboard &= (check_mask_bitboard - 1)
+        
+        return bitboards
 
     def __is_piece_present(self, target_bitboard, colour=None):
         """Check if a piece is present on the target square."""

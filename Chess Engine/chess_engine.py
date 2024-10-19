@@ -1,3 +1,5 @@
+from collections import deque
+
 class ChessEngine:
     def __init__(self):
         self.piece_bitboards = {
@@ -17,7 +19,10 @@ class ChessEngine:
 
         self.full_bitboard = 0xFFFF00000000FFFF # All pieces
 
-        self.en_passant_bitboard = 0x0 # For En Passant capturing
+        self.en_passant_bitboards ={
+            'w': 0x0,
+            'b': 0x0
+        } # For En Passant capturing
 
         self.castling_bitboards = {
             'w': 0x0,
@@ -53,6 +58,8 @@ class ChessEngine:
             'q': [0x0]*64
         }
 
+        self.saved_board_state = None
+
         self.king_attacks = [0x0]*64
         self.pawn_attacks = {'w': [0x0] * 64, 'b': [0x0] * 64}  # Initialize attack arrays for both colors
         self.knight_attacks = [0x0]*64
@@ -69,7 +76,132 @@ class ChessEngine:
         self.__generate_pawn_attacks()
         self.__update_attack_bitboards()
 
+        self.leaves = []
 
+    def examine_leaves(self):
+        for leaf in self.leaves:
+            self.piece_bitboards = leaf[0]
+            self.colour_bitboards = leaf[1]
+
+            self.draw()
+
+    def set_draw_ref(self, draw):
+        self.draw = draw
+
+    def perft(self, depth, board_state=None):
+        # print(f"Depth: {depth}")
+        if depth == 0:
+            # self.leaves.append([self.piece_bitboards.copy(), self.colour_bitboards.copy()])
+            return 1
+
+        if board_state:
+            self.__load_board_state(board_state)
+
+        count = 0
+
+        colour_bitboard = self.colour_bitboards[self.colour_to_move]
+
+        # print(f"Colour to move: {self.colour_to_move}")
+
+        # self.print_bitboard(colour_bitboard, f"{self.colour_to_move} piece bitboard")
+
+        if colour_bitboard:
+            # print(f"Depth: {depth}")
+
+            source_bitboards = self.__get_individual_bitboards(colour_bitboard)
+
+            for source_bitboard in source_bitboards:
+                # self.print_bitboard(source_bitboard,  "Source bitboard")
+
+                all_legal_move_bitboard = self.__get_legal_moves(source_bitboard)
+                # self.print_bitboard(all_legal_move_bitboard,  "Legal moves")
+
+                if all_legal_move_bitboard:
+                    legal_move_bitboards = self.__get_individual_bitboards(all_legal_move_bitboard)
+
+                    for target_bitboard in legal_move_bitboards:
+                        # print(f"Colour to move: {self.colour_to_move}")
+                        # self.print_bitboard(target_bitboard,  "Target bitboard")
+                        # print('Got board state')
+                        prev_board_state = self.__get_current_board_state()
+                        self.__update_bitboard(source_bitboard, target_bitboard)
+                        current_board_state = self.__get_current_board_state()
+                        # self.draw()
+                        count += self.perft(depth - 1, current_board_state)
+                        self.__load_board_state(prev_board_state)
+                        # print('Reloaded board state')
+
+        # print("bottom of perft")
+        # self.draw()
+        return count
+    
+    def __save_board_state(self, current_board_state):
+        """Save the current state of the board and relevant attributes."""
+        self.saved_board_state = current_board_state
+
+    def __get_current_board_state(self):
+        """Get the current state of the board and relevant attributes."""
+        return {
+            "piece bitboards": self.piece_bitboards.copy(),
+            "colour bitboards": self.colour_bitboards.copy(),
+            "full bitboard": self.full_bitboard,
+            "en passant bitboards": self.en_passant_bitboards,
+            "castling bitboard": self.castling_bitboards.copy(),
+            "eligible castling pieces": self.eligible_castling_pieces,
+            "colour to move": self.colour_to_move,
+            "attack bitboards": self.attack_bitboards.copy(),
+            "slider attacks": {key: val.copy() for key, val in self.slider_attacks.items()},
+            "king attacks": self.king_attacks.copy(),
+            "pawn attacks": {color: val.copy() for color, val in self.pawn_attacks.items()},
+            "knight attacks": self.knight_attacks.copy(),
+            "path masks": [row.copy() for row in self.path_masks],
+            "pin masks": self.pin_masks.copy(),
+            "check masks": self.check_masks.copy(),
+            "pin mask bitboard": self.pin_mask_bitboard,
+            "check mask bitboard": self.check_mask_bitboard,
+        }
+
+
+    def __restore_board_state(self):
+        """Restore the board to the previously saved state."""
+        self.piece_bitboards = self.saved_board_state["piece bitboards"]
+        self.colour_bitboards = self.saved_board_state["colour bitboards"]
+        self.full_bitboard = self.saved_board_state["full bitboard"]
+        self.en_passant_bitboards = self.saved_board_state["en passant bitboards"]
+        self.castling_bitboards = self.saved_board_state["castling bitboard"]
+        self.eligible_castling_pieces = self.saved_board_state["eligible castling pieces"]
+        self.colour_to_move = self.saved_board_state["colour to move"]
+        self.attack_bitboards = self.saved_board_state["attack bitboards"]
+        self.slider_attacks = {key: val.copy() for key, val in self.saved_board_state["slider attacks"].items()}
+        self.king_attacks = self.saved_board_state["king attacks"]
+        self.pawn_attacks = {color: val.copy() for color, val in self.saved_board_state["pawn attacks"].items()}
+        self.knight_attacks = self.saved_board_state["knight attacks"]
+        self.path_masks = [row.copy() for row in self.saved_board_state["path masks"]]
+        self.pin_masks = self.saved_board_state["pin masks"]
+        self.check_masks = self.saved_board_state["check masks"]
+        self.pin_mask_bitboard = self.saved_board_state["pin mask bitboard"]
+        self.check_mask_bitboard = self.saved_board_state["check mask bitboard"]
+
+    def __load_board_state(self, board_state):
+        board_state = board_state.copy()
+        """Load the board state from a given dictionary."""
+        self.piece_bitboards = board_state["piece bitboards"]
+        self.colour_bitboards = board_state["colour bitboards"]
+        self.full_bitboard = board_state["full bitboard"]
+        self.en_passant_bitboards = board_state["en passant bitboards"]
+        self.castling_bitboards = board_state["castling bitboard"]
+        self.eligible_castling_pieces = board_state["eligible castling pieces"]
+        self.colour_to_move = board_state["colour to move"]
+        self.attack_bitboards = board_state["attack bitboards"]
+        self.slider_attacks = {key: val.copy() for key, val in board_state["slider attacks"].items()}
+        self.king_attacks = board_state["king attacks"]
+        self.pawn_attacks = {color: val.copy() for color, val in board_state["pawn attacks"].items()}
+        self.knight_attacks = board_state["knight attacks"]
+        self.path_masks = [row.copy() for row in board_state["path masks"]]
+        self.pin_masks = board_state["pin masks"]
+        self.check_masks = board_state["check masks"]
+        self.pin_mask_bitboard = board_state["pin mask bitboard"]
+        self.check_mask_bitboard = board_state["check mask bitboard"]
 
     def get_piece_at(self, target_square):
         piece = self.__get_piece_at(1 << target_square)
@@ -189,11 +321,11 @@ class ChessEngine:
         self.full_bitboard |= (destination_bitboard)
 
         self.check_for_promotion(destination_bitboard, piece_type, piece_colour)
+        self.__update_attack_bitboards()
 
         self.__check_for_en_passant(source_bitboard, destination_bitboard, piece_type, piece_colour)  
         self.__check_for_castle(destination_bitboard, piece_type, piece_colour)
 
-        self.__update_attack_bitboards()
         self.__update_castling_bitboards()
 
         self.pin_masks = [0xFFFFFFFFFFFFFFFF] * 64
@@ -221,23 +353,29 @@ class ChessEngine:
             move_direction = 16 if piece_colour == "w" else -16  # 16 for white, -16 for black
 
             if destination_square == current_square + move_direction:  # Moved two squares forward
-                # Set the en passant target
-                self.en_passant_bitboard = (1 << (destination_square - (8 if piece_colour == "w" else -8)))
-            elif destination_bitboard & self.en_passant_bitboard:  # Check for en passant capture
+                # Set the en passant target for the opponent
+                target_bitboard = 1 << (destination_square - (8 if piece_colour == "w" else -8))
+                self.en_passant_bitboards["b" if piece_colour == "w" else "w"] = target_bitboard
+            elif destination_bitboard & self.en_passant_bitboards[piece_colour]:  # Check for en passant capture
                 en_passant_square = (destination_square - (8 if piece_colour == "w" else -8))
                 # Remove the opponent's pawn
                 self.colour_bitboards["b" if piece_colour == "w" else "w"] &= ~(1 << en_passant_square)
                 self.piece_bitboards['p'] &= ~(1 << en_passant_square)  # Handle both colours
                 self.full_bitboard &= ~(1 << en_passant_square)
                 
-                # Clear the en passant bitboard after capture
-                self.en_passant_bitboard = 0
+                # Clear the en passant bitboard for both sides after capture
+                self.en_passant_bitboards['w'] = 0
+                self.en_passant_bitboards['b'] = 0
             else:
                 # No move to set en passant target
-                self.en_passant_bitboard = 0   
+                self.en_passant_bitboards['w'] = 0
+                self.en_passant_bitboards['b'] = 0
         else:
-            self.en_passant_bitboard = 0 
-        
+            # Clear both en passant bitboards if it's not a pawn move
+            self.en_passant_bitboards['w'] = 0
+            self.en_passant_bitboards['b'] = 0
+
+            
 
     def __check_for_castle(self, destination_bitboard, piece_type, piece_colour):
         if piece_type == 'k':
@@ -318,7 +456,7 @@ class ChessEngine:
 
         # Check if the attack mask intersects with the king's position
         if attack_mask & king_bitboard:
-            print("King in check")
+            # print("King in check")
             self.check_masks[piece_square] = piece_bitboard  # Update check masks
             self.check_mask_bitboard |= 1 << piece_square  # Update the check mask bitboard
 
@@ -333,7 +471,7 @@ class ChessEngine:
         attack_mask = self.knight_attacks[piece_square]
         
         if attack_mask & king_bitboard:
-            print("King in check")
+            # print("King in check")
             self.check_masks[piece_square] = piece_bitboard
             self.check_mask_bitboard |= 1 << piece_square
 
@@ -349,7 +487,8 @@ class ChessEngine:
 
         if path_mask:
             if (path_mask & ~source_bitboard) & self.colour_bitboards[pinning_colour]:
-                print('Enemy piece(s) alleviating pin')
+                # print('Enemy piece(s) alleviating pin')
+                pass
             elif path_mask & self.colour_bitboards[king_colour]:
                 if (path_mask & self.colour_bitboards[king_colour]).bit_count() == 1:
                     pinned_piece_square = self.__get_square_from_bitboard(path_mask & self.colour_bitboards[king_colour])
@@ -357,10 +496,11 @@ class ChessEngine:
                     # self.print_bitboard(path_mask | source_bitboard)
                     self.pin_mask_bitboard |= 1 << pinned_piece_square
                 else:
-                    print('Multiple pieces alleviating pin')
+                    # print('Multiple pieces alleviating pin')
+                    pass
             else:
                 if slider_mask & king_bitboard:
-                    print("King in check")
+                    # print("King in check")
                     # self.print_bitboard(source_bitboard | king_bitboard, title="King and Source")
                     # self.print_bitboard(path_mask, title="Path Mask")
                     # self.print_bitboard(slider_mask, title="Slider Mask")
@@ -603,15 +743,13 @@ class ChessEngine:
         legal_moves &= ~self.colour_bitboards[piece_colour]
         legal_moves &= pinned_mask
 
-        self.print_bitboard(source_bitboard, "Source bitboard")
+        # self.print_bitboard(source_bitboard, "Source bitboard")
 
 
         if self.check_mask_bitboard:
-            print("Check count: ", self.check_mask_bitboard.bit_count())
-
-            checking_bitboards = self.__get_checking_bitboards(self.check_mask_bitboard)
+            checking_bitboards = self.__get_individual_bitboards(self.check_mask_bitboard)
             for checking_bitboard in checking_bitboards:
-                self.print_bitboard(checking_bitboard, "Checking bitboard")
+                # self.print_bitboard(checking_bitboard, "Checking bitboard")
 
                 if piece_type == 'k':
                     attacking_piece = self.__get_piece_at(checking_bitboard)
@@ -629,9 +767,9 @@ class ChessEngine:
                         return 0x0
 
                     check_mask = self.check_masks[self.__get_square_from_bitboard(checking_bitboard)]
-                    self.print_bitboard(check_mask, "Check mask")
+                    # self.print_bitboard(check_mask, "Check mask")
                     legal_moves &= check_mask
-                    self.print_bitboard(legal_moves, "Legal moves")
+                    # self.print_bitboard(legal_moves, "Legal moves")
 
         return legal_moves
 
@@ -646,12 +784,10 @@ class ChessEngine:
         if colour == "w":  # White pawns move upwards (to higher ranks)
             move_direction = 8  # Move forward 1 square
             start_rank = 1      # Starting rank for white pawns (rank 2, index 1)
-            promotion_rank = 7  # Promotion rank for white pawns (rank 8, index 7)
             opponent_colour = "b"
         else:  # Black pawns move downwards (to lower ranks)
             move_direction = -8  # Move forward 1 square
             start_rank = 6       # Starting rank for black pawns (rank 7, index 6)
-            promotion_rank = 0   # Promotion rank for black pawns (rank 1, index 0)
             opponent_colour = "w"
         
         # Precomputed pawn attack masks for capturing moves
@@ -662,9 +798,6 @@ class ChessEngine:
         if 0 <= forward_square < 64:  # Check bounds
             if not self.__is_piece_present(1 << forward_square):  # Square must be empty
                 legal_moves_bitboard |= (1 << forward_square)  # Set the bit for this move
-                # Check for promotion
-                if forward_square // 8 == promotion_rank:
-                    legal_moves_bitboard |= self.__handle_pawn_promotion(forward_square, colour)
         
         # Move forward by 2 squares if on the starting rank
         if current_square // 8 == start_rank:
@@ -674,16 +807,20 @@ class ChessEngine:
                 not self.__is_piece_present(1 << forward_square)):  # Both squares must be empty
                 legal_moves_bitboard |= (1 << double_forward_square)  # Set the bit for the double move
                 # Set en passant target square (just behind the pawn)
-                self.en_passant_bitboard = (1 << forward_square)
+                self.en_passant_bitboards["b" if colour == "w" else "w"] = (1 << forward_square)
 
         # Use precomputed pawn attack mask for capture moves
         captures_bitboard = pawn_attacks & self.colour_bitboards[opponent_colour]
         legal_moves_bitboard |= captures_bitboard
         
         # Check for en passant capture
-        en_passant_capture = pawn_attacks & self.en_passant_bitboard
+        en_passant_capture = pawn_attacks & self.en_passant_bitboards[colour]
         if en_passant_capture:
-            legal_moves_bitboard |= en_passant_capture
+            self.print_bitboard(en_passant_capture)
+            # Check that the en passant target square doesn't contain a pawn of the same colour
+            en_passant_target_square = self.__get_square_from_bitboard(en_passant_capture)
+            if not (self.colour_bitboards[colour] & (1 << en_passant_target_square)):  # Ensure no own pawn
+                legal_moves_bitboard |= en_passant_capture
 
         return legal_moves_bitboard  # Return the bitboard of legal moves for the pawn
 
@@ -830,7 +967,7 @@ class ChessEngine:
         """Get the square index (0-63) from the bitboard."""
         return (bitboard.bit_length() - 1) if bitboard else None
 
-    def __get_checking_bitboards(self, check_mask_bitboard):
+    def __get_individual_bitboards(self, check_mask_bitboard):
         """Extracts individual bitboards with only one '1' bit for each piece checking the king."""
         bitboards = []
 
@@ -858,3 +995,9 @@ class ChessEngine:
         negative_diag = (index1 // 8 + index1 % 8) == (index2 // 8 + index2 % 8)
         
         return positive_diag or negative_diag
+
+
+if __name__ == "__main__":
+    chess_engine = ChessEngine()
+    for i in range(3):
+        print(f"D{i} - Nodes: ", chess_engine.perft(i))

@@ -1,7 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import time
-from chess_engine import ChessEngine
+# from chess_engine import ChessEngine
 
 class ChessUI(tk.Tk):
     def __init__(self, chess_engine):
@@ -58,9 +58,6 @@ class ChessUI(tk.Tk):
         self.canvas.bind("<B1-Motion>", self.on_piece_drag)  # Mouse drag
         self.canvas.bind("<ButtonRelease-1>", self.on_piece_release)  # Mouse button release
 
-        self.draw_board()
-        self.draw_pieces()
-
         self.last_update_time = time.time()  # Track the last update time using time module
         self.redraw_after_resize = None  # Variable to hold the redraw after resize task
 
@@ -69,6 +66,17 @@ class ChessUI(tk.Tk):
         self.checkbox_frame.grid(row=0, column=1, sticky="nsew", pady=60)  # Add some padding for better spacing
 
         self.checkbox_vars = {}  # Store checkbox variables for each bitboard
+
+        self.perft_button = tk.Button(
+            self.checkbox_frame,
+            text="Run Perft",
+            command=self.button_click,
+            bg="#666666",  # Button background color
+            fg="white",    # Button text color
+            font=("Helvetica", 10),  # Font settings
+            relief=tk.FLAT  # Flat button style
+        )
+        self.perft_button.pack(pady=10)  # Add some vertical padding
 
         # Descriptive bitboard labels
         bitboard_descriptions = {
@@ -81,7 +89,7 @@ class ChessUI(tk.Tk):
             "b": "Bishops",
             "q": "Queen",
             "k": "King",
-            # "e": "En Passant Squares",
+            "e": "En Passant Squares",
             # "wc": "White Castling",
             # "bc": "Black Castling",
             "wa": "White Attacks",
@@ -104,6 +112,31 @@ class ChessUI(tk.Tk):
             checkbox.pack(anchor='w', pady=2, expand=True)  # Minimal vertical padding between checkboxes
             self.checkbox_vars[bitboard] = var
 
+        self.chess_engine.set_draw_ref(self.draw)
+
+        self.can_proceed = False
+        self.bind('<Return>', self.on_enter)
+
+    def on_enter(self, event):
+        self.can_proceed = True
+
+    def button_click(self):
+        print(self.chess_engine.perft(5))
+        chess_engine.examine_leaves()
+
+    def draw(self):
+        self.draw_board()
+        self.draw_pieces()
+        self.update_idletasks()
+        self.update()
+        # self.after(10)
+        
+        while not self.can_proceed:
+            self.update_idletasks()
+            self.update()
+            self.after(100)
+
+        self.can_proceed = False
 
     def update_selected_bitboards(self):
         """Update the list of selected bitboards based on checkbox state."""
@@ -131,18 +164,30 @@ class ChessUI(tk.Tk):
     def load_images(self):
         """Load images from file paths."""
         piece_paths = {
-            'wp': "./Chess Engine/Images/Chess Pieces/white_pawn.png",
-            'wr': "./Chess Engine/Images/Chess Pieces/white_rook.png",
-            'wn': "./Chess Engine/Images/Chess Pieces/white_knight.png",
-            'wb': "./Chess Engine/Images/Chess Pieces/white_bishop.png",
-            'wq': "./Chess Engine/Images/Chess Pieces/white_queen.png",
-            'wk': "./Chess Engine/Images/Chess Pieces/white_king.png",
-            'bp': "./Chess Engine/Images/Chess Pieces/black_pawn.png",
-            'br': "./Chess Engine/Images/Chess Pieces/black_rook.png",
-            'bn': "./Chess Engine/Images/Chess Pieces/black_knight.png",
-            'bb': "./Chess Engine/Images/Chess Pieces/black_bishop.png",
-            'bq': "./Chess Engine/Images/Chess Pieces/black_queen.png",
-            'bk': "./Chess Engine/Images/Chess Pieces/black_king.png"
+            # 'wp': "./Chess Engine/Images/Chess Pieces/white_pawn.png",
+            # 'wr': "./Chess Engine/Images/Chess Pieces/white_rook.png",
+            # 'wn': "./Chess Engine/Images/Chess Pieces/white_knight.png",
+            # 'wb': "./Chess Engine/Images/Chess Pieces/white_bishop.png",
+            # 'wq': "./Chess Engine/Images/Chess Pieces/white_queen.png",
+            # 'wk': "./Chess Engine/Images/Chess Pieces/white_king.png",
+            # 'bp': "./Chess Engine/Images/Chess Pieces/black_pawn.png",
+            # 'br': "./Chess Engine/Images/Chess Pieces/black_rook.png",
+            # 'bn': "./Chess Engine/Images/Chess Pieces/black_knight.png",
+            # 'bb': "./Chess Engine/Images/Chess Pieces/black_bishop.png",
+            # 'bq': "./Chess Engine/Images/Chess Pieces/black_queen.png",
+            # 'bk': "./Chess Engine/Images/Chess Pieces/black_king.png"
+            'wp': "./Images/Chess Pieces/white_pawn.png",
+            'wr': "./Images/Chess Pieces/white_rook.png",
+            'wn': "./Images/Chess Pieces/white_knight.png",
+            'wb': "./Images/Chess Pieces/white_bishop.png",
+            'wq': "./Images/Chess Pieces/white_queen.png",
+            'wk': "./Images/Chess Pieces/white_king.png",
+            'bp': "./Images/Chess Pieces/black_pawn.png",
+            'br': "./Images/Chess Pieces/black_rook.png",
+            'bn': "./Images/Chess Pieces/black_knight.png",
+            'bb': "./Images/Chess Pieces/black_bishop.png",
+            'bq': "./Images/Chess Pieces/black_queen.png",
+            'bk': "./Images/Chess Pieces/black_king.png"
         }
 
         # Load and scale the images for the initial size
@@ -383,6 +428,7 @@ class ChessUI(tk.Tk):
 
 
 if __name__ == "__main__":
+    from chess_engine import ChessEngine
     chess_engine = ChessEngine()
     chess_ui = ChessUI(chess_engine)
     chess_ui.mainloop()

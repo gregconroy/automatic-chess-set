@@ -164,30 +164,30 @@ class ChessUI(tk.Tk):
     def load_images(self):
         """Load images from file paths."""
         piece_paths = {
-            # 'wp': "./Chess Engine/Images/Chess Pieces/white_pawn.png",
-            # 'wr': "./Chess Engine/Images/Chess Pieces/white_rook.png",
-            # 'wn': "./Chess Engine/Images/Chess Pieces/white_knight.png",
-            # 'wb': "./Chess Engine/Images/Chess Pieces/white_bishop.png",
-            # 'wq': "./Chess Engine/Images/Chess Pieces/white_queen.png",
-            # 'wk': "./Chess Engine/Images/Chess Pieces/white_king.png",
-            # 'bp': "./Chess Engine/Images/Chess Pieces/black_pawn.png",
-            # 'br': "./Chess Engine/Images/Chess Pieces/black_rook.png",
-            # 'bn': "./Chess Engine/Images/Chess Pieces/black_knight.png",
-            # 'bb': "./Chess Engine/Images/Chess Pieces/black_bishop.png",
-            # 'bq': "./Chess Engine/Images/Chess Pieces/black_queen.png",
-            # 'bk': "./Chess Engine/Images/Chess Pieces/black_king.png"
-            'wp': "./Images/Chess Pieces/white_pawn.png",
-            'wr': "./Images/Chess Pieces/white_rook.png",
-            'wn': "./Images/Chess Pieces/white_knight.png",
-            'wb': "./Images/Chess Pieces/white_bishop.png",
-            'wq': "./Images/Chess Pieces/white_queen.png",
-            'wk': "./Images/Chess Pieces/white_king.png",
-            'bp': "./Images/Chess Pieces/black_pawn.png",
-            'br': "./Images/Chess Pieces/black_rook.png",
-            'bn': "./Images/Chess Pieces/black_knight.png",
-            'bb': "./Images/Chess Pieces/black_bishop.png",
-            'bq': "./Images/Chess Pieces/black_queen.png",
-            'bk': "./Images/Chess Pieces/black_king.png"
+            'wp': "./Chess Engine/Images/Chess Pieces/white_pawn.png",
+            'wr': "./Chess Engine/Images/Chess Pieces/white_rook.png",
+            'wn': "./Chess Engine/Images/Chess Pieces/white_knight.png",
+            'wb': "./Chess Engine/Images/Chess Pieces/white_bishop.png",
+            'wq': "./Chess Engine/Images/Chess Pieces/white_queen.png",
+            'wk': "./Chess Engine/Images/Chess Pieces/white_king.png",
+            'bp': "./Chess Engine/Images/Chess Pieces/black_pawn.png",
+            'br': "./Chess Engine/Images/Chess Pieces/black_rook.png",
+            'bn': "./Chess Engine/Images/Chess Pieces/black_knight.png",
+            'bb': "./Chess Engine/Images/Chess Pieces/black_bishop.png",
+            'bq': "./Chess Engine/Images/Chess Pieces/black_queen.png",
+            'bk': "./Chess Engine/Images/Chess Pieces/black_king.png"
+            # 'wp': "./Images/Chess Pieces/white_pawn.png",
+            # 'wr': "./Images/Chess Pieces/white_rook.png",
+            # 'wn': "./Images/Chess Pieces/white_knight.png",
+            # 'wb': "./Images/Chess Pieces/white_bishop.png",
+            # 'wq': "./Images/Chess Pieces/white_queen.png",
+            # 'wk': "./Images/Chess Pieces/white_king.png",
+            # 'bp': "./Images/Chess Pieces/black_pawn.png",
+            # 'br': "./Images/Chess Pieces/black_rook.png",
+            # 'bn': "./Images/Chess Pieces/black_knight.png",
+            # 'bb': "./Images/Chess Pieces/black_bishop.png",
+            # 'bq': "./Images/Chess Pieces/black_queen.png",
+            # 'bk': "./Images/Chess Pieces/black_king.png"
         }
 
         # Load and scale the images for the initial size

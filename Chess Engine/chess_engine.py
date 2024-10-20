@@ -145,45 +145,19 @@ class ChessEngine:
             "piece bitboards": self.piece_bitboards.copy(),
             "colour bitboards": self.colour_bitboards.copy(),
             "full bitboard": self.full_bitboard,
-            "en passant bitboards": self.en_passant_bitboards,
+            "en passant bitboards": self.en_passant_bitboards.copy(),
             "castling bitboard": self.castling_bitboards.copy(),
             "eligible castling pieces": self.eligible_castling_pieces,
             "colour to move": self.colour_to_move,
             "attack bitboards": self.attack_bitboards.copy(),
-            "slider attacks": {key: val.copy() for key, val in self.slider_attacks.items()},
-            "king attacks": self.king_attacks.copy(),
-            "pawn attacks": {color: val.copy() for color, val in self.pawn_attacks.items()},
-            "knight attacks": self.knight_attacks.copy(),
-            "path masks": [row.copy() for row in self.path_masks],
-            "pin masks": self.pin_masks.copy(),
-            "check masks": self.check_masks.copy(),
+            "pin masks": self.pin_masks,
+            "check masks": self.check_masks,
             "pin mask bitboard": self.pin_mask_bitboard,
             "check mask bitboard": self.check_mask_bitboard,
         }
 
-
-    def __restore_board_state(self):
-        """Restore the board to the previously saved state."""
-        self.piece_bitboards = self.saved_board_state["piece bitboards"]
-        self.colour_bitboards = self.saved_board_state["colour bitboards"]
-        self.full_bitboard = self.saved_board_state["full bitboard"]
-        self.en_passant_bitboards = self.saved_board_state["en passant bitboards"]
-        self.castling_bitboards = self.saved_board_state["castling bitboard"]
-        self.eligible_castling_pieces = self.saved_board_state["eligible castling pieces"]
-        self.colour_to_move = self.saved_board_state["colour to move"]
-        self.attack_bitboards = self.saved_board_state["attack bitboards"]
-        self.slider_attacks = {key: val.copy() for key, val in self.saved_board_state["slider attacks"].items()}
-        self.king_attacks = self.saved_board_state["king attacks"]
-        self.pawn_attacks = {color: val.copy() for color, val in self.saved_board_state["pawn attacks"].items()}
-        self.knight_attacks = self.saved_board_state["knight attacks"]
-        self.path_masks = [row.copy() for row in self.saved_board_state["path masks"]]
-        self.pin_masks = self.saved_board_state["pin masks"]
-        self.check_masks = self.saved_board_state["check masks"]
-        self.pin_mask_bitboard = self.saved_board_state["pin mask bitboard"]
-        self.check_mask_bitboard = self.saved_board_state["check mask bitboard"]
-
     def __load_board_state(self, board_state):
-        board_state = board_state.copy()
+        board_state = board_state
         """Load the board state from a given dictionary."""
         self.piece_bitboards = board_state["piece bitboards"]
         self.colour_bitboards = board_state["colour bitboards"]
@@ -193,11 +167,6 @@ class ChessEngine:
         self.eligible_castling_pieces = board_state["eligible castling pieces"]
         self.colour_to_move = board_state["colour to move"]
         self.attack_bitboards = board_state["attack bitboards"]
-        self.slider_attacks = {key: val.copy() for key, val in board_state["slider attacks"].items()}
-        self.king_attacks = board_state["king attacks"]
-        self.pawn_attacks = {color: val.copy() for color, val in board_state["pawn attacks"].items()}
-        self.knight_attacks = board_state["knight attacks"]
-        self.path_masks = [row.copy() for row in board_state["path masks"]]
         self.pin_masks = board_state["pin masks"]
         self.check_masks = board_state["check masks"]
         self.pin_mask_bitboard = board_state["pin mask bitboard"]
@@ -820,6 +789,7 @@ class ChessEngine:
             # Check that the en passant target square doesn't contain a pawn of the same colour
             en_passant_target_square = self.__get_square_from_bitboard(en_passant_capture)
             if not (self.colour_bitboards[colour] & (1 << en_passant_target_square)):  # Ensure no own pawn
+
                 legal_moves_bitboard |= en_passant_capture
 
         return legal_moves_bitboard  # Return the bitboard of legal moves for the pawn
@@ -999,5 +969,5 @@ class ChessEngine:
 
 if __name__ == "__main__":
     chess_engine = ChessEngine()
-    for i in range(3):
+    for i in range(5):
         print(f"D{i} - Nodes: ", chess_engine.perft(i))

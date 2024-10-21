@@ -1,36 +1,35 @@
-import Jetson.GPIO as GPIO
+import serial
 import time
 
-# Pin Definitions
-motor_pin_a = 18  # BOARD pin 12, BCM pin 18
-motor_pin_b = 23  # BOARD pin 16, BCM pin 16
+# Configure the serial port and baud rate
+SERIAL_PORT = '/dev/ttyUSB0'  # Your ESP's USB port
+BAUD_RATE = 115200
 
+# Function to send a message to the ESP
+def send_message(serial_connection, message_type, message):
+    formatted_message = f'{{{message_type}:{message}}}'
+    serial_connection.write(formatted_message.encode('utf-8'))
+    print(f'Sent: {formatted_message}')
+
+# Function to read incoming messages from the ESP
+def read_incoming(serial_connection):
+    while True:
+        if serial_connection.in_waiting > 0:
+            incoming_data = serial_connection.read_until(b'}')  # Read until the closing bracket
+            print(f'Received: {incoming_data.decode("utf-8")}')
+
+# Main function
 def main():
-    # Pin Setup:
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(motor_pin_a, GPIO.OUT, initial=GPIO.LOW)
-    GPIO.setup(motor_pin_b, GPIO.OUT, initial=GPIO.LOW)
+    # Open the serial connection
+    with serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1) as ser:
+        time.sleep(2)  # Wait for the serial connection to initialize
 
-    print("Starting demo now! Press CTRL+C to exit")
-    
-    # Start with motor_pin_a HIGH and motor_pin_b LOW
-    curr_value_pin_a = GPIO.HIGH
-    curr_value_pin_b = GPIO.LOW
-    
-    try:
-        while True:
-            # Toggle the output every half a second (0.5 seconds)
-            time.sleep(0.5)
-            print("Outputting {} to pin {} AND {} to pin {}".format(curr_value_pin_a, motor_pin_a, curr_value_pin_b, motor_pin_b))
-            GPIO.output(motor_pin_a, curr_value_pin_a)
-            GPIO.output(motor_pin_b, curr_value_pin_b)
-            
-            # Toggle the pin values
-            curr_value_pin_a = GPIO.LOW if curr_value_pin_a == GPIO.HIGH else GPIO.HIGH
-            curr_value_pin_b = GPIO.LOW if curr_value_pin_b == GPIO.HIGH else GPIO.HIGH
-            
-    finally:
-        GPIO.cleanup()
+        try:
+            # Example of sending a message
+            send_message(ser, "move", "a1a3")  # Sending a move command
+            read_incoming(ser)  # Read incoming messages
+        except KeyboardInterrupt:
+            print("Exiting program.")
 
 if __name__ == "__main__":
     main()

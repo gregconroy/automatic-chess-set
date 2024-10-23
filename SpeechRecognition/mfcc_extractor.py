@@ -14,39 +14,39 @@ class MFCCExtractor:
         self.dct_filter_num = 2 * self.mel_filter_num
         self.sample_rate = 44100
 
-    def format_mfcc(self, mfcc, frames):
-        target_shape = (frames, self.dct_filter_num)
-        mfcc = mfcc.copy()
-        padding_needed = target_shape[0] - mfcc.shape[0]
-        if padding_needed > 0:
-            # Pad with zeros if needed
-            mfcc = np.pad(mfcc, ((0, padding_needed), (0, 0)), mode='constant')
-        elif padding_needed < 0:
-            # Truncate if the array is too long
-            mfcc = mfcc[:target_shape[0], :]
-        
-        return mfcc.flatten()
-
-
-
     # def format_mfcc(self, mfcc, frames):
     #     target_shape = (frames, self.dct_filter_num)
     #     mfcc = mfcc.copy()
-        
-    #     if mfcc.shape[0] != target_shape[0]:
-    #         # Create an array of indices for the original and target frames
-    #         original_indices = np.linspace(0, 1, mfcc.shape[0])
-    #         target_indices = np.linspace(0, 1, target_shape[0])
-            
-    #         # Interpolate each coefficient dimension independently
-    #         mfcc_interp = np.zeros(target_shape)
-    #         for i in range(mfcc.shape[1]):
-    #             interpolator = interp1d(original_indices, mfcc[:, i], kind='linear', fill_value="extrapolate")
-    #             mfcc_interp[:, i] = interpolator(target_indices)
-            
-    #         mfcc = mfcc_interp
+    #     padding_needed = target_shape[0] - mfcc.shape[0]
+    #     if padding_needed > 0:
+    #         # Pad with zeros if needed
+    #         mfcc = np.pad(mfcc, ((0, padding_needed), (0, 0)), mode='constant')
+    #     elif padding_needed < 0:
+    #         # Truncate if the array is too long
+    #         mfcc = mfcc[:target_shape[0], :]
         
     #     return mfcc.flatten()
+
+
+
+    def format_mfcc(self, mfcc, frames):
+        target_shape = (frames, self.dct_filter_num)
+        mfcc = mfcc.copy()
+        
+        if mfcc.shape[0] != target_shape[0]:
+            # Create an array of indices for the original and target frames
+            original_indices = np.linspace(0, 1, mfcc.shape[0])
+            target_indices = np.linspace(0, 1, target_shape[0])
+            
+            # Interpolate each coefficient dimension independently
+            mfcc_interp = np.zeros(target_shape)
+            for i in range(mfcc.shape[1]):
+                interpolator = interp1d(original_indices, mfcc[:, i], kind='linear', fill_value="extrapolate")
+                mfcc_interp[:, i] = interpolator(target_indices)
+            
+            mfcc = mfcc_interp
+        
+        return mfcc.flatten()
 
 
     def normalise_audio(self, audio):

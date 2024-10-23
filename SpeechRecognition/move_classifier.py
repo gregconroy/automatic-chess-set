@@ -9,9 +9,9 @@ class MoveClassifier:
 
     def __init__(self):
         self.mfcc_extractor = MFCCExtractor(num_coeffs=100)
-        self.piece_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.PIECES, weights_dir='./CNN/piece_weights.npz')
-        self.letter_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.LETTERS, weights_dir='./CNN/letter_weights.npz')
-        self.number_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.NUMBERS, weights_dir='./CNN/number_weights.npz')
+        self.piece_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.PIECES, weights_dir='./SpeechRecognition/CNN/piece_weights.npz')
+        self.letter_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.LETTERS, weights_dir='./SpeechRecognition/CNN/letter_weights.npz')
+        self.number_classifier = NNClassifier(mfcc_coeffs=100, mfcc_frames=100, num_layers=3, num_hidden_nodes=64, labels=self.NUMBERS, weights_dir='./SpeechRecognition/CNN/number_weights.npz')
 
 
     def classify(self, audio_segments):

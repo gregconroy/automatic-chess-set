@@ -7,8 +7,8 @@ class ChessEngine:
             "r": 0x8100000000000081,  # Rooks
             "n": 0x4200000000000042,  # Knights
             "b": 0x2400000000000024,  # Bishops
-            "q": 0x1000000000000010,  # Queens
-            "k": 0x0800000000000008   # Kings
+            "q": 0x0800000000000008,  # Queens
+            "k": 0x1000000000000010   # Kings
         }
         
         # Colour bitboards (w: white, b: black)
@@ -28,13 +28,13 @@ class ChessEngine:
             'w': 0x0,
             'b': 0x0
         }
-        self.castling_mask = 0x7600000000000076
-        self.castling_attack_mask = 0x3600000000000036
-        self.qs_castling_mask = 0xF8000000000000F8
-        self.ks_castling_mask = 0x0F0000000000000F
+        self.castling_mask = 0x6E0000000000006E
+        self.castling_attack_mask = 0x6C0000000000006C
+        self.qs_castling_mask = 0x1F0000000000001F
+        self.ks_castling_mask = 0xF0000000000000F0
         self.first_row_mask = 0xFF
         self.last_row_mask = 0xFF00000000000000
-        self.eligible_castling_pieces = 0x8900000000000089
+        self.eligible_castling_pieces = 0x9100000000000091
 
         self.generate_moves = {
             "p": self.__generate_pawn_moves,
@@ -349,18 +349,18 @@ class ChessEngine:
     def __check_for_castle(self, destination_bitboard, piece_type, piece_colour):
         if piece_type == 'k':
             if destination_bitboard & self.castling_bitboards[piece_colour]:
-                if destination_bitboard & (1 << 1):  
+                if destination_bitboard & (1 << 2):  
                     rook_source_bitboard = 0x1     
-                    rook_destination_bitboard = 0x4  
-                elif destination_bitboard & (1 << 5):  
+                    rook_destination_bitboard = 0x8  
+                elif destination_bitboard & (1 << 6):  
                     rook_source_bitboard = 0x80      
-                    rook_destination_bitboard = 0x10  
-                elif destination_bitboard & (1 << 57): 
+                    rook_destination_bitboard = 0x20  
+                elif destination_bitboard & (1 << 58): 
                     rook_source_bitboard = (1 << 56)    
-                    rook_destination_bitboard = (1 << 58) 
+                    rook_destination_bitboard = (1 << 59) 
                 else:
                     rook_source_bitboard = (1 << 63)    
-                    rook_destination_bitboard = (1 << 60) 
+                    rook_destination_bitboard = (1 << 61) 
 
                 self.piece_bitboards['r'] &= ~(rook_source_bitboard)    
                 self.colour_bitboards[piece_colour] &= ~(rook_source_bitboard)
@@ -386,18 +386,22 @@ class ChessEngine:
 
 
         # Determine the castling bitboard
-        self.castling_bitboards['w'] = (~(self.full_bitboard | self.attack_bitboards['b'] & self.castling_attack_mask) & self.castling_mask) | (castling_pieces) & self.first_row_mask
-        self.castling_bitboards['b'] = (~(self.full_bitboard | self.attack_bitboards['w'] & self.castling_attack_mask) & self.castling_mask) | (castling_pieces) & self.last_row_mask
+        self.castling_bitboards['w'] = ((~(self.full_bitboard | self.attack_bitboards['b'] & self.castling_attack_mask) & self.castling_mask) | (castling_pieces)) & self.first_row_mask
+        self.castling_bitboards['b'] = ((~(self.full_bitboard | self.attack_bitboards['w'] & self.castling_attack_mask) & self.castling_mask) | (castling_pieces)) & self.last_row_mask
 
         # Update valid_castles based on the castling masks
         valid_castles = 0  # Clear both king-side and queen-side flags
 
+        self.print_bitboard(self.castling_bitboards['b'], "castling bitboard")
+        self.print_bitboard(self.ks_castling_mask, "ks mask")
+        self.print_bitboard(self.qs_castling_mask, "qs mask")
+
         # Check king-side castling
         if (self.castling_bitboards['w'] & self.ks_castling_mask) == (self.ks_castling_mask & self.first_row_mask):
-            valid_castles |=  0x2
+            valid_castles |=  0x40
         # Check queen-side castling
         if (self.castling_bitboards['w'] & self.qs_castling_mask) == (self.qs_castling_mask & self.first_row_mask):
-            valid_castles |=  0x20
+            valid_castles |=  0x4
 
         self.castling_bitboards['w'] = valid_castles
 
@@ -406,10 +410,11 @@ class ChessEngine:
 
         # Check king-side castling
         if (self.castling_bitboards['b'] & self.ks_castling_mask) == (self.ks_castling_mask & self.last_row_mask):
-            valid_castles |=  0x0200000000000000
+            valid_castles |=  0x4000000000000000
         # Check queen-side castling
         if (self.castling_bitboards['b'] & self.qs_castling_mask) == (self.qs_castling_mask & self.last_row_mask):
-            valid_castles |=  0x2000000000000000
+            valid_castles |=  0x0400000000000000
+
 
         self.castling_bitboards['b'] = valid_castles
 

@@ -1,20 +1,23 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import time
+import platform
+import os
 # from chess_engine import ChessEngine
 
 class ChessUI(tk.Tk):
-    def __init__(self, chess_engine):
+    def __init__(self, chess_engine, chess_robot=None):
         super().__init__()
         self.title("Bitboard Chess")
 
         self.chess_engine = chess_engine
+        self.chess_robot = chess_robot
 
-        self.board_colours = ["#576175", "#A7AFBE"]
-        self.legal_colours = ["#8F3D3D", "#D19494"] 
+        self.board_colours = ["#A7AFBE", "#576175"]
+        self.legal_colours = ["#D19494", "#8F3D3D"] 
         self.bitboard_colours = {
-            "0": ["#576175", "#A7AFBE"],
-            "1": ["#993300", "#FF9966"]
+            "0": ["#A7AFBE", "#576175"],
+            "1": ["#FF9966", "#993300"]
         }
         self.background_colour = "#333333"
         self.config(bg=self.background_colour)
@@ -89,9 +92,9 @@ class ChessUI(tk.Tk):
             "b": "Bishops",
             "q": "Queen",
             "k": "King",
-            "e": "En Passant Squares",
-            # "wc": "White Castling",
-            # "bc": "Black Castling",
+            # "e": "En Passant Squares",
+            "wc": "White Castling",
+            "bc": "Black Castling",
             "wa": "White Attacks",
             "ba": "Black Attacks"
         }
@@ -129,7 +132,6 @@ class ChessUI(tk.Tk):
         self.draw_pieces()
         self.update_idletasks()
         self.update()
-        # self.after(10)
         
         while not self.can_proceed:
             self.update_idletasks()
@@ -163,34 +165,26 @@ class ChessUI(tk.Tk):
 
     def load_images(self):
         """Load images from file paths."""
-        piece_paths = {
-            'wp': "./Chess Engine/Images/Chess Pieces/white_pawn.png",
-            'wr': "./Chess Engine/Images/Chess Pieces/white_rook.png",
-            'wn': "./Chess Engine/Images/Chess Pieces/white_knight.png",
-            'wb': "./Chess Engine/Images/Chess Pieces/white_bishop.png",
-            'wq': "./Chess Engine/Images/Chess Pieces/white_queen.png",
-            'wk': "./Chess Engine/Images/Chess Pieces/white_king.png",
-            'bp': "./Chess Engine/Images/Chess Pieces/black_pawn.png",
-            'br': "./Chess Engine/Images/Chess Pieces/black_rook.png",
-            'bn': "./Chess Engine/Images/Chess Pieces/black_knight.png",
-            'bb': "./Chess Engine/Images/Chess Pieces/black_bishop.png",
-            'bq': "./Chess Engine/Images/Chess Pieces/black_queen.png",
-            'bk': "./Chess Engine/Images/Chess Pieces/black_king.png"
-            # 'wp': "./Images/Chess Pieces/white_pawn.png",
-            # 'wr': "./Images/Chess Pieces/white_rook.png",
-            # 'wn': "./Images/Chess Pieces/white_knight.png",
-            # 'wb': "./Images/Chess Pieces/white_bishop.png",
-            # 'wq': "./Images/Chess Pieces/white_queen.png",
-            # 'wk': "./Images/Chess Pieces/white_king.png",
-            # 'bp': "./Images/Chess Pieces/black_pawn.png",
-            # 'br': "./Images/Chess Pieces/black_rook.png",
-            # 'bn': "./Images/Chess Pieces/black_knight.png",
-            # 'bb': "./Images/Chess Pieces/black_bishop.png",
-            # 'bq': "./Images/Chess Pieces/black_queen.png",
-            # 'bk': "./Images/Chess Pieces/black_king.png"
-        }
+        
+        # Base paths for different operating systems
+        base_path = "./ChessEngine/Images/Chess Pieces" if platform.system() != "Linux" else "./Images/Chess Pieces"
 
-        # Load and scale the images for the initial size
+        # Define piece paths using the base path
+        piece_paths = {
+            'wp': os.path.join(base_path, "white_pawn.png"),
+            'wr': os.path.join(base_path, "white_rook.png"),
+            'wn': os.path.join(base_path, "white_knight.png"),
+            'wb': os.path.join(base_path, "white_bishop.png"),
+            'wq': os.path.join(base_path, "white_queen.png"),
+            'wk': os.path.join(base_path, "white_king.png"),
+            'bp': os.path.join(base_path, "black_pawn.png"),
+            'br': os.path.join(base_path, "black_rook.png"),
+            'bn': os.path.join(base_path, "black_knight.png"),
+            'bb': os.path.join(base_path, "black_bishop.png"),
+            'bq': os.path.join(base_path, "black_queen.png"),
+            'bk': os.path.join(base_path, "black_king.png")
+        }
+                # Load and scale the images for the initial size
         for symbol, path in piece_paths.items():
             image = Image.open(path)
             scaled_image = image.resize((self.square_size, self.square_size), Image.LANCZOS)
@@ -275,7 +269,6 @@ class ChessUI(tk.Tk):
             "W": chess_engine.colour_bitboards["w"],
             "B": chess_engine.colour_bitboards["b"],
             "f": chess_engine.full_bitboard,
-            "e": chess_engine.en_passant_bitboard,
             "wc": chess_engine.castling_bitboards['w'],
             "bc": chess_engine.castling_bitboards['b'],
             "wa": chess_engine.attack_bitboards["w"],
@@ -356,7 +349,6 @@ class ChessUI(tk.Tk):
 
         piece = self.chess_engine.get_piece_at(square_index)
         if piece:
-            print("Showing legal moves")
             self.legal_move_bitboard = self.chess_engine.get_legal_moves(square_index)
             self.dragged_piece = piece
             self.dragged_piece_position = square_index
@@ -405,6 +397,12 @@ class ChessUI(tk.Tk):
 
             # Validate the move before updating the bitboard
             if self.chess_engine.request_move(self.dragged_piece_position, new_square_index):
+                source_pos = self.number_to_chess_notation(self.dragged_piece_position)
+                dest_pos = self.number_to_chess_notation(new_square_index)
+                
+                if self.chess_robot:
+                    self.chess_robot.perform_move(source_pos + dest_pos)
+
                 # Clear the old position of the dragged piece
                 old_x = (self.dragged_piece_position % 8) * self.square_size
                 old_y = (7 - (self.dragged_piece_position // 8)) * self.square_size
@@ -425,6 +423,16 @@ class ChessUI(tk.Tk):
 
     def format_piece(self, piece):
         return ''.join(piece[::-1])
+    
+    def number_to_chess_notation(self, square):
+        if not (0 <= square <= 63):
+            raise ValueError("Number must be between 0 and 63 inclusive.")
+        
+        # Calculate file (column) and rank (row)
+        file = chr(ord('a') + (square % 8))  # Files are 'a' to 'h'
+        rank = str((square // 8) + 1)         # Ranks are '1' to '8'
+        
+        return f"{file}{rank}"
 
 
 if __name__ == "__main__":

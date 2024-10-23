@@ -5,7 +5,7 @@ import time
 import io
 
 class LiveSpeechProcessor:
-    OUTPUT_DIR = './SpeechRecognition/Clips/'
+    OUTPUT_DIR = './Clips/'
     MAX_AMPLITUDE = 2**15 # 16-bit audio
     CHANNELS = 1
     SAMPLING_RATE = 44100 # Hz
